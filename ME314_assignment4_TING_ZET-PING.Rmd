@@ -1,0 +1,231 @@
+---
+title: "Lab 4 - Linear Regression"
+author: "Natasha Ting"
+output: html_document
+---
+
+```{r, include=FALSE, results='hide'}
+file.rename(paste(getwd(), "/ME314_assignment4_LASTNAME_FIRSTNAME.Rmd", sep=""), paste(getwd(), "/ME314_assignment4_TING_ZET-TING.Rmd", sep=""))
+```
+
+This assignment is based on the material covered in James et al. We will subsequently open up solutions to the problem sets.
+
+## Exercise 4.1
+
+This question involves the use of multiple linear regression on the `Auto` data set. So load the data set from the `ISLR` package first.
+
+If the following code chunk returns an error, you most likely have to install the `ISLR` package first. Use `install.packages("ISLR")` if this is the case.
+
+```{r}
+# install.packages("ISLR")
+data("Auto", package = "ISLR")
+
+# 
+
+# !! `auto <- try(data(Auto, package="ISLR")` doesn't work. Can't assign a dataset to a variable. 
+```
+
+**Dataset description: **
+Gas mileage, horsepower, and other information for 392 vehicles.
+>  A data frame with 392 observations on the following 9 variables. 
+**Fields available: **
+- mpg:  miles per gallon
+- cylinders: Number of cylinders between 4 and 8 
+- displacement Engine displacement (cu. inches) 
+- horsepower Engine horsepower
+- weight: Vehicle weight (lbs.)
+- acceleration: Time to accelerate from 0 to 60 mph (sec.) 
+- year Model year (modulo 100)
+- origin: Origin of car (1. American, 2. European, 3. Japanese) 
+- name Vehicle name
+
+(a) Produce a scatterplot matrix which includes all of the variables in the data set.
+```{r}
+par(mfrow=c(4,3))
+pairs(Auto[1:3])
+pairs(Auto[4:6])
+pairs(Auto[7:9])
+plot(Auto)
+```
+
+
+(b) Compute the matrix of correlations between the variables using the function `cor()`. You will need to exclude the `name` variable, which is qualitative.
+```{r}
+library(dplyr)
+
+# can subset whith col number
+print(which(colnames(Auto)=="name") )
+Auto1 <- Auto[c(-9)]
+
+# can subset with names 
+Auto2 <- Auto[c(-which(colnames(Auto)=="name"))]
+
+# can subset with subset
+Auto3 <- subset(Auto, select = !colnames(Auto) %in% "name")
+
+# fail to  subset with filter
+# `Auto4 <- Auto %>% dplyr::filter(UQ(!!as.name("name")=="name")))`
+
+# can subset with select_if 
+Auto4 <- Auto %>% select_if(is.numeric)
+
+# check if 2 dfs are equal
+identical(Auto1, Auto2)
+
+# another method to check if 2 dfs are equal
+isTRUE(all.equal(Auto2, Auto3))
+all.equal(Auto2, Auto3)
+
+```
+
+
+(c) Use the `lm()` function to perform a multiple linear regression with `mpg` as the response and all other variables except `name` as the predictors. Use the `summary()` function to print the results. Comment on the output. For instance:
+
+    i. Is there a relationship between the predictors and the response?
+    ii. Which predictors appear to have a statistically significant relationship to the response?
+    iii. What does the coefficient for the `year` variable suggest?  
+  
+  
+```{r}
+# another way to reg on all var --- `myregreg <- with(Auto1, lm(mpg~., data = Auto1))`
+myreg = lm(mpg ~ ., data=Auto1)
+summary(myreg)
+```
+
+(d) Use the `plot()` function to produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?
+
+```{r}
+# do the plot
+plot(myreg)
+```
+
+```{r}
+par(mfrow=c(2,2))
+with(Auto1, plot(cylinders, mpg))
+abline(lm(mpg~cylinders, Auto1))
+
+with(Auto1, plot(displacement, mpg))
+abline(lm(mpg~displacement, Auto1))
+
+with(Auto1, plot(weight, mpg))    # TODO can't see abline on this scale. How to help
+abline(lm(mpg~weight, Auto1))
+
+with(Auto1, plot(acceleration, mpg))
+abline(lm(mpg~acceleration, Auto1))
+```
+
+```{r}
+colnames(Auto1)
+par(mfrow=c(2,1))
+with(Auto1, plot(year, mpg))
+abline(lm(mpg~year, Auto1))       # TODO can't see abline of this variable
+
+summary(lm(mpg~year, Auto1))
+
+with(Auto1, plot(origin, mpg))
+abline(lm(mpg~origin, Auto1))
+
+```
+(e) Use the `*` and `:` symbols to fit linear regression models with interaction effects. Do any interactions appear to be statistically significant?
+> NT: 
+**Fields available: **
+- mpg:  miles per gallon
+- cylinders: Number of cylinders between 4 and 8 
+- displacement: Engine displacement (cu. inches) 
+- horsepower: Engine horsepower
+- weight: Vehicle weight (lbs.)
+- acceleration: Time to accelerate from 0 to 60 mph (sec.) 
+- year: Model year (modulo 100)
+- origin: Origin of car (1. American, 2. European, 3. Japanese) 
+- name: Vehicle name
+
+```{r}
+horse_acceleration <- Auto1$horsepower * Auto1$acceleration
+plot(Auto1$horsepower, Auto1$acceleration, )
+abline(lm(horsepower~acceleration, Auto1), col="red")
+
+sprintf("It seems that horsepower and accelaration has high negative correlation of %f, with a fitted prodictor value of %f ",cor(Auto1$horsepower, Auto1$acceleration), coef(lm(horsepower~acceleration, Auto1))[2])
+
+Autoplus <- Auto1 %>% dplyr::mutate(horsepower * acceleration)
+# go, go ahead with regressing on that
+interact_reg <-lm(mpg ~ ., data=Autoplus)
+summary(interact_reg)
+
+```
+**I note that the interaction term is highly statistically significant. In addition, adjusted r-squared has gone up from 0.8182238 to 0.8376468 **
+
+```{r}
+sprintf("I note that the interaction term is highly statistically significant. In addition, adjusted r-squared has gone up from %f to %f", summary(myreg)$adj.r.squared, summary(interact_reg)$adj.r.squared)
+```
+
+(f) Try a few different transformations of the variables, such as $log(X)$, $\sqrt{X}$, $X^2$. Comment on your findings.
+
+```{r}
+
+horse_reg <- lm(mpg~horsepower, data=Auto1)
+summary(horse_reg)$r.squared
+
+log_reg <- lm(mpg~log(horsepower), data=Auto1)
+summary(log_reg)$r.squared
+par(mfrow = c(2,2))
+plot(Auto1$horsepower, Auto1$mpg)
+plot(log(Auto1$horsepower), Auto1$mpg)
+
+```
+
+
+
+## Exercise 4.2
+
+This question should be answered using the `Carseats` dataset from the `ISLR` package. So load the data set from the `ISLR` package first.
+
+```{r}
+data("Carseats", package = "ISLR")
+```
+
+
+(a) Fit a multiple regression model to predict `Sales` using `Price`,
+`Urban`, and `US`.
+
+(b) Provide an interpretation of each coefficient in the model. Be
+careful -- some of the variables in the model are qualitative!
+
+(c) Write out the model in equation form, being careful to handle the qualitative variables properly.
+
+(d) For which of the predictors can you reject the null hypothesis $H_0 : \beta_j =0$?
+
+(e) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there is evidence of association with the outcome.
+
+(f) How well do the models in (a) and (e) fit the data?
+
+(g) Using the model from (e), obtain 95% confidence intervals for the coefficient(s).
+
+(h) Is there evidence of outliers or high leverage observations in the model from (e)?
+
+
+## Exercise 4.3 (Optional)
+
+In this exercise you will create some simulated data and will fit simple linear regression models to it. Make sure to use `set.seed(1)` prior to starting part (a) to ensure consistent results.
+
+(a) Using the `rnorm()` function, create a vector, `x`, containing 100 observations drawn from a $N(0,1)$ distribution. This represents a feature, `X`.
+
+(b) Using the `rnorm()` function, create a vector, `eps`, containing 100 observations drawn from a $N(0,0.25)$ distribution i.e. a normal distribution with mean zero and variance 0.25.
+
+(c) Using `x` and `eps`, generate a vector `y` according to the model
+$$Y = -1 + 0.5X + \epsilon$$
+What is the length of the vector `y`? What are the values of $\beta_0$ and $\beta_1$ in this linear model?
+
+(d) Create a scatterplot displaying the relationship between `x` and `y`. Comment on what you observe.
+
+(e) Fit a least squares linear model to predict `y` using `x`. Comment on the model obtained. How do $\hat{\beta}_0$ and $\hat{\beta}_1$ compare to $\beta_0$ and $\beta_1$?
+
+(f) Display the least squares line on the scatterplot obtained in (d). Draw the population regression line on the plot, in a different color. Use the `legend()` command to create an appropriate legend.
+
+(g) Now fit a polynomial regression model that predicts $y$ using $x$ and $x^2$. Is there evidence that the quadratic term improves the model fit? Explain your answer.
+
+(h) Repeat (a)-(f) after modifying the data generation process in such a way that there is less noise in the data. The model should remain the same. You can do this by decreasing the variance of the normal distribution used to generate the error term $\epsilon$ in (b). Describe your results.
+
+(i) Repeat (a)-(f) after modifying the data generation process in such a way that there is more noise in the data. The model should remain the same. You can do this by increasing the variance of the normal distribution used to generate the error term $\epsilon$ in (b). Describe your results.
+
+(j) What are the confidence intervals for $\beta_0$ and $\beta_1$ based on the original data set, the noisier data set, and the less noisy data set? Comment on your results.
+
