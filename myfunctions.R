@@ -22,3 +22,8 @@ describe_coef <- function(regression, x) {
   }
   
 }
+
+
+range_of_confint <- function(regression) {
+  rng <- confint(regression)[4] - confint(regression)[3]
+}

@@ -277,45 +277,118 @@ plot(US, Sales, xlab = "US", ylab="Sales")
 In this exercise you will create some simulated data and will fit simple linear regression models to it. Make sure to use `set.seed(1)` prior to starting part (a) to ensure consistent results.
 
 (a) Using the `rnorm()` function, create a vector, `x`, containing 100 observations drawn from a $N(0,1)$ distribution. This represents a feature, `X`.
+
 ```{r}
 set.seed(1)
+X <- rnorm(100, mean = 0, sd = 1)
 ```
 
 (b) Using the `rnorm()` function, create a vector, `eps`, containing 100 observations drawn from a $N(0,0.25)$ distribution i.e. a normal distribution with mean zero and variance 0.25.
 
 ```{r}
+set.seed(1)
+eps <- rnorm(100, mean = 0, sd = 0.25)
 ```
 
 (c) Using `x` and `eps`, generate a vector `y` according to the model
 $$Y = -1 + 0.5X + \epsilon$$
 What is the length of the vector `y`? What are the values of $\beta_0$ and $\beta_1$ in this linear model?
 
-(d) Create a scatterplot displaying the relationship between `x` and `y`. Comment on what you observe.
 ```{r}
+Y = -1 + 0.5 * X + eps
+hist(Y)
+```
+
+(d) Create a scatterplot displaying the relationship between `x` and `y`. Comment on what you observe.
+
+```{r}
+plot(X, Y)
+abline(lm(Y~X))
+
+sprintf("Y and X does not seem to be a strong relationship. In addition, it has a weak correlation of %f. ", cor(X, Y))
 ```
 
 
 (e) Fit a least squares linear model to predict `y` using `x`. Comment on the model obtained. How do $\hat{\beta}_0$ and $\hat{\beta}_1$ compare to $\beta_0$ and $\beta_1$?
 ```{r}
+lm.2 <- lm(Y~X)
+
+sprintf("The model has an r-squared of %f, with a F-statistic of %f", summary(lm.2)$r.squared , summary(lm.2)$fstatistic[1])
+sprintf("The predictor X is not statistically significant with a t-statistic of only 0.237 and a p-value of 0.813. We can be highly confident that the predictor for X, $/beta_0 = 0$")
+
 ```
 
 (f) Display the least squares line on the scatterplot obtained in (d). Draw the population regression line on the plot, in a different color. Use the `legend()` command to create an appropriate legend.
 ```{r}
+plot(Y, X)
+abline(lm(Y~X), col="blue")
+abline(Y,X, col="red")
+# TODO add legend: `legend(0.2,0.3, "hello" )`
+# TODO how to plot the population regression line?
+
 ```
 
 (g) Now fit a polynomial regression model that predicts $y$ using $x$ and $x^2$. Is there evidence that the quadratic term improves the model fit? Explain your answer.
+
 ```{r}
+X2 <- X^2
+lm.3 <- lm(Y~X + X2)
+sprintf("The new r-squared and adjusted r-squared is %f and %f respectively. This is greater than the old rsquared with just a degree-1 linear fit of %f and %f. ", summary(lm.3)$r.squared, summary(lm.3)$adj.r.squared, summary(lm.2)$r.squared, summary(lm.2)$adj.r.squared)
+# can adj.r.squared be negative??? 
+```
+```{r}
+plot(X, Y)
+abline(lm.2, col="red")
+abline(lm.3, col="blue")
 ```
 
 (h) Repeat (a)-(f) after modifying the data generation process in such a way that there is less noise in the data. The model should remain the same. You can do this by decreasing the variance of the normal distribution used to generate the error term $\epsilon$ in (b). Describe your results.
+
 ```{r}
+set.seed(1)
+eps_lessnoise <- rnorm(100, mean = 0, sd = 0.2)
+Y_lessnoise <- -1 + 0.5*X + eps_lessnoise
+
+lm.4 <- lm(Y_lessnoise~X)
+lm.5 <- lm(Y_lessnoise ~ X + X2)
+
+sprintf("After having reduced the error term, it is found that the new r-squared and adjusted r-squared for degree-1 linear model is %f and %f respectively. Mean while, the polynomial fit has an rsquared of %f and adjusted r-squared of %f. Therefore, linear fit looks better for this simulated data.", summary(lm.4)$r.squared, summary(lm.4)$adj.r.squared, summary(lm.5)$r.squared, summary(lm.5)$adj.r.squared)
+
+
+```
+```{r}
+plot(X, Y_lessnoise)
+abline(lm.4, col="red")
+print("Graphically, this looks like a linear fit. ")
 ```
 
 (i) Repeat (a)-(f) after modifying the data generation process in such a way that there is more noise in the data. The model should remain the same. You can do this by increasing the variance of the normal distribution used to generate the error term $\epsilon$ in (b). Describe your results.
+
 ```{r}
+set.seed(1)
+eps_morenoise <- rnorm(100, mean = 0, sd = 5)
+Y_morenoise <- -1 + 0.5*X + eps_morenoise
+
+lm.6 <- lm(Y_morenoise~X)
+lm.7 <- lm(Y_morenoise ~ X + X2)
+
+sprintf("After having increased variation in the error term, it is found that the new r-squared and adjusted r-squared for degree-1 linear model is %f and %f respectively. Mean while, the polynomial fit has an rsquared of %f and adjusted r-squared of %f. Therefore, polynomial fit looks better for this simulated data.", summary(lm.6)$r.squared, summary(lm.6)$adj.r.squared, summary(lm.7)$r.squared, summary(lm.7)$adj.r.squared)
+
+# TODO adjusted r-squared is again negative. 
 ```
 
 (j) What are the confidence intervals for $\beta_0$ and $\beta_1$ based on the original data set, the noisier data set, and the less noisy data set? Comment on your results.
+
 ```{r}
+confint(lm.2)
+confint(lm.4)
+confint(lm.6)
+
+# TODO Ask about the loads of "essentially linear fit" warnings
+
+sprintf("The range of confident interval for X in ORIGINAL model is %f ", range_of_confint(lm.4))
+sprintf("The range of confident interval for X in the NOISIER model is %f ", range_of_confint(lm.2))
+sprintf("The range of confident interval for X in the LESS NOISY model is %f ", range_of_confint(lm.6))
 ```
+
 
