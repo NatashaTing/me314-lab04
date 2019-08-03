@@ -90,6 +90,7 @@ all.equal(Auto2, Auto3)
 # another way to reg on all var --- `myregreg <- with(Auto1, lm(mpg~., data = Auto1))`
 myreg = lm(mpg ~ ., data=Auto1)
 summary(myreg)
+
 ```
 
 (d) Use the `plot()` function to produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?
@@ -105,20 +106,35 @@ with(Auto1, plot(cylinders, mpg))
 abline(lm(mpg~cylinders, Auto1))
 
 with(Auto1, plot(displacement, mpg))
-abline(lm(mpg~displacement, Auto1))
+abline(lm(mpg~displacement, Auto1), col="red")
 
-with(Auto1, plot(weight, mpg))    # TODO can't see abline on this scale. How to help
-abline(lm(mpg~weight, Auto1))
+with(Auto1, plot(weight, mpg))   
+abline(lm(mpg~weight, Auto1), col="red")
 
+# intercept: -17.218435
+# slope for acceleration : 0.080576
 with(Auto1, plot(acceleration, mpg))
 abline(lm(mpg~acceleration, Auto1))
+
+```
+```{r}
+# this snippet shows that the lines for SLR and MLR on the same variables are not the same. 
+par(mfrow=c(2,2))
+with(Auto1, plot(acceleration, mpg))
+abline(lm(mpg~acceleration, Auto1))
+
+coefficients(myreg)
+
+with(Auto1, plot(acceleration, mpg))
+abline(as.numeric(myreg$coefficients[1]), as.numeric(myreg$coefficients[6]), col="blue")
+abline(lm(mpg ~ acceleration, Auto1), col="red")
 ```
 
 ```{r}
 colnames(Auto1)
 par(mfrow=c(2,1))
 with(Auto1, plot(year, mpg))
-abline(lm(mpg~year, Auto1))       # TODO can't see abline of this variable
+abline(lm(mpg~year, Auto1))     
 
 summary(lm(mpg~year, Auto1))
 
@@ -141,15 +157,15 @@ abline(lm(mpg~origin, Auto1))
 
 ```{r}
 horse_acceleration <- Auto1$horsepower * Auto1$acceleration
-plot(Auto1$horsepower, Auto1$acceleration, )
+plot(Auto1$acceleration, Auto1$horsepower)
 abline(lm(horsepower~acceleration, Auto1), col="red")
 
 sprintf("It seems that horsepower and accelaration has high negative correlation of %f, with a fitted prodictor value of %f ",cor(Auto1$horsepower, Auto1$acceleration), coef(lm(horsepower~acceleration, Auto1))[2])
 
 Autoplus <- Auto1 %>% dplyr::mutate(horsepower * acceleration)
 # go, go ahead with regressing on that
-interact_reg <-lm(mpg ~ ., data=Autoplus)
-summary(interact_reg)
+lm.interact <-lm(mpg ~ ., data=Autoplus)
+summary(lm.interact)
 
 ```
 **I note that the interaction term is highly statistically significant. In addition, adjusted r-squared has gone up from 0.8182238 to 0.8376468 **
@@ -162,11 +178,11 @@ sprintf("I note that the interaction term is highly statistically significant. I
 
 ```{r}
 
-horse_reg <- lm(mpg~horsepower, data=Auto1)
-summary(horse_reg)$r.squared
+lm.horse <- lm(mpg~horsepower, data=Auto1)
+summary(lm.horse)$r.squared
 
-log_reg <- lm(mpg~log(horsepower), data=Auto1)
-summary(log_reg)$r.squared
+lm.log_horse <- lm(mpg~log(horsepower), data=Auto1)
+summary(lm.log_horse)$r.squared
 par(mfrow = c(2,2))
 plot(Auto1$horsepower, Auto1$mpg)
 plot(log(Auto1$horsepower), Auto1$mpg)
@@ -180,31 +196,84 @@ plot(log(Auto1$horsepower), Auto1$mpg)
 This question should be answered using the `Carseats` dataset from the `ISLR` package. So load the data set from the `ISLR` package first.
 
 ```{r}
+
 data("Carseats", package = "ISLR")
+# colnames(select_if(Carseats,is.numeric))
+# [1] "Sales"       "CompPrice"   "Income"      "Advertising" "Population" 
+# [6] "Price"       "Age"         "Education"  
+
 ```
 
 
 (a) Fit a multiple regression model to predict `Sales` using `Price`,
 `Urban`, and `US`.
+```{r}
+
+attach(Carseats)
+lm.1 <- lm(Sales ~ Price + Urban + US)
+summary(lm.1)
+
+# plot something 
+plot(Sales, fitted.values(lm(Sales~Price)))
+abline(lm(Sales~Price), col="blue")
+abline(lm(Sales~residuals(lm(Sales~Price))), col="red")
+
+# data satisfies homogeneity assumption
+plot(residuals(lm(Sales~Price)))
+```
 
 (b) Provide an interpretation of each coefficient in the model. Be
 careful -- some of the variables in the model are qualitative!
+```{r}
+
+is.numeric(c(US, Price, Sales, Urban))
+
+# import script to use my own function
+source("myfunctions.R")
+sapply(c(1:length(colnames(lm.1$model))), describe_coef, regression=lm.1)
+
+```
+**For every 1 dollar increase in price, given the same car type (urban or not) and car origing (U.S. made or not), sales decreases by 0.05 units. \n Sales for urban cars is less than the non-urban ones by 0.02 units holding car type and car price constant. In addition, U.S. made cars sell better, with a sales performance of 1.2 units more than the non-U.S. made models. **
+
 
 (c) Write out the model in equation form, being careful to handle the qualitative variables properly.
+$$ \widehat{Sales} = \widehat{13.043469} + \widehat{-0.054459}*Price 
+                    +  \widehat{-0.021916}*Urban + \widehat{1.200573}*US + \epsilon$$
 
 (d) For which of the predictors can you reject the null hypothesis $H_0 : \beta_j =0$?
-
+**Predictor `Urban` has a t-statistic of -0.081 and a p-value of 0.936. It is statistically highly insignificant. I can reject the null hypothesis $H_0 : \beta_Urban = 0$ at very low confidence interval. ** 
 (e) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there is evidence of association with the outcome.
 
-(f) How well do the models in (a) and (e) fit the data?
+```{r}
+lm.small <- lm(Sales ~ Price + US)
+summary(lm.small)
+```
 
-(g) Using the model from (e), obtain 95% confidence intervals for the coefficient(s).
+(f) How well do the models in (a) and (e) fit the data?
+```{r}
+sprintf("R-squared for this model is %s, the model can explain %s percent of variation in Sales. ", summary(lm.small)$r.squared, round(x = summary(lm.small)$r.squared*100, digits = 2))
+```
+
+(g) Using the model from (e), obtain 95% confidence intervals for the coefficient(s). 
+
+```{r}
+confint(object = lm.small, level = 0.95)
+```
+
+**From the data, it can be said that the true effect of price on car sales will be within -0.0648 and -0.0442, 95% of the time, if the linear regression is performed on an infinite number of sample data. The true effect of the car being U.S. made is within 0.6915 and 1.7078 given the same conditions. **
+
 
 (h) Is there evidence of outliers or high leverage observations in the model from (e)?
 
+```{r}
+par(mfrow=c(2,2))
+plot(Price, Sales)
+plot(US, Sales, xlab = "US", ylab="Sales")
+```
+
+**The graphs provide graphical evidence that there are outliers in both Price and US variables. **
 
 ## Exercise 4.3 (Optional)
-
 In this exercise you will create some simulated data and will fit simple linear regression models to it. Make sure to use `set.seed(1)` prior to starting part (a) to ensure consistent results.
 
 (a) Using the `rnorm()` function, create a vector, `x`, containing 100 observations drawn from a $N(0,1)$ distribution. This represents a feature, `X`.
